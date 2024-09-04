@@ -239,6 +239,20 @@ class Humanoid(BaseTask):
             self._dof_obs_size = 114
             self._num_actions = 57
             self._num_obs = 1 + 20 * (3 + 6 + 3 + 3) - 3
+        elif (asset_file == 'mjcf/smpl_humanoid_19.xml'):
+            self._body_names = [
+                'Pelvis',
+                'L_Hip', 'L_Knee', 'L_Ankle',
+                'R_Hip', 'R_Knee', 'R_Ankle',
+                'Torso', 'Spine', 'Chest', 'Neck',
+                'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist',
+                'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist',
+            ]
+            self._dof_body_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17]
+            self._dof_offsets = np.linspace(0, len(self._dof_body_ids) * 3, len(self._dof_body_ids) + 1).astype(int)
+            self._dof_obs_size = len(self._dof_body_ids) * 6
+            self._num_actions = len(self._dof_body_ids) * 3
+            self._num_obs = 1 + len(self._body_names) * (3 + 6 + 3 + 3) - 3
 
         else:
             print("Unsupported character config file: {s}".format(asset_file))
@@ -248,7 +262,7 @@ class Humanoid(BaseTask):
         return
 
     def _load_scene_asset(self):
-        asset_root = "data/assets/mjcf"
+        asset_root = "ase/data/assets/mjcf"
         asset_file = "amass_cmu_83_32_pyramid.urdf"
         asset_options = gymapi.AssetOptions()
         asset_options.angular_damping = 0.01
@@ -376,7 +390,7 @@ class Humanoid(BaseTask):
         return
 
     def _load_chair_asset(self):
-        asset_chair_root = "data/assets"
+        asset_chair_root = "ase/data/assets"
         asset_chair = "objects/0f25a699-6560-426d-a590-7e69986c449d.urdf"
 
         asset_options = gymapi.AssetOptions()

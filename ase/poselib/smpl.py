@@ -19,10 +19,13 @@ VISUALIZE = False
 # joints_to_use = np.array(
 #     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
 # )
-joints_to_use = np.array(
-    [0, 1, 4, 7, 2, 5, 8, 3, 6, 9, 12, 15, 13, 16, 18, 20, 14, 17, 19, 21]
+selected_joints = np.array(
+    [0, 1, 4, 7, 2, 5, 8, 3, 6, 9, 12, 13, 16, 18, 20, 14, 17, 19, 21]
 )
-joints_to_use = np.arange(0, 165).reshape((-1, 3))[joints_to_use].reshape(-1)
+# joints_to_use = np.array([
+#     0, 3, 12, 14, 17, 19, 13, 16, 18, 2, 5, 8, 1, 4, 7
+# ])
+joints_to_use = np.arange(0, 165).reshape((-1, 3))[selected_joints].reshape(-1)
 
 
 def dataloader_SAMP(path):
@@ -78,7 +81,7 @@ if __name__ == '__main__':
 
     # read all sequences
     if dataset == "SAMP":
-        params = glob.glob(osp.join(dataset_dir, "*.pkl"))
+        params = [x for x in glob.glob(osp.join(dataset_dir, "*.pkl")) if x.split("/")[-1].startswith("chair")]
         dataloader = dataloader_SAMP
     elif dataset == "AMASS":
         params = glob.glob(osp.join(dataset_dir, dataset, "*/*/*.npz"))
@@ -90,12 +93,14 @@ if __name__ == '__main__':
     print("processing dataset: {} num_params: {}\n".format(dataset, len(params)))
 
     # load and visualize t-pose files
+    # TODO: rewrite a tpose with more bones, need pelvis, spine1, spine2, spine3, neck
     tpose_file = "character/data/amp_humanoid_smplx_tpose_{}.npy".format(gender)
     if not osp.exists(tpose_file):
         print("tpose file not existed! creating from mjcf file...\n")
 
         # load in XML mjcf file and save zero rotation pose in npy format
-        xml_path = "data/assets/mjcf_smplx/amp_humanoid_smplx_{}.xml".format(gender)
+        # xml_path = "data/assets/mjcf_smplx/amp_humanoid_smplx_{}.xml".format(gender)
+        xml_path = 'ase/data/assets/mjcf/smpl_humanoid_19.xml'
         skeleton = SkeletonTree.from_mjcf(xml_path)
         tpose = SkeletonState.zero_pose(skeleton)
         tpose.to_file(tpose_file)
@@ -115,21 +120,44 @@ if __name__ == '__main__':
         full_poses, full_trans, fps = dataloader(path)
 
         # extract useful joints
-        full_poses = full_poses[:, joints_to_use].reshape(-1,20,3)
-        full_poses_quat = np.zeros((full_poses.shape[0],full_poses.shape[1],4))
+        full_poses = full_poses[:, joints_to_use].reshape(-1, len(selected_joints), 3)
+        
         # angle axis ---> quaternion
-        for i in range(full_poses.shape[0]):
-            full_poses_quat[i] = R.from_rotvec(full_poses[i]).as_quat()
+        pose_quat_isaac = (
+            R.from_rotvec(full_poses.reshape(-1, 3)).as_quat().reshape(-1, len(selected_joints), 4)
+        )
+        N = pose_quat_isaac.shape[0]
 
-        # switch quaternion order
-        # wxyz -> xyzw
-        # full_poses_quat = full_poses_quat[:, :, [1, 2, 3, 0]]
-        full_poses_quat = torch.tensor(full_poses_quat)
-        # generate motion
-        skeleton_state = SkeletonState.from_rotation_and_root_translation(tpose.skeleton_tree, full_poses_quat,
-                                                                          full_trans, is_local=True)
-        motion = SkeletonMotion.from_skeleton_state(skeleton_state, fps=fps)
+        new_sk_state = SkeletonState.from_rotation_and_root_translation(
+            tpose.skeleton_tree,
+            torch.from_numpy(pose_quat_isaac),
+            full_trans,
+            is_local=True,
+        )
+        pose_quat_global = (
+            (
+                R.from_quat(new_sk_state.global_rotation.reshape(-1, 4).numpy())
+                * R.from_quat([0.5, 0.5, 0.5, 0.5]).inv()
+            )
+            .as_quat()
+            .reshape(N, -1, 4)
+        )
+
+        # global_translation = new_sk_state.global_transformation[
+        #     :, :, 4:
+        # ]  # global transformation: [N, 19, 7]
+        # min_z = global_translation[:, :, 2].min()  # min for all frames and all joints
+        # full_trans[:, 2] -= min_z
+
+        new_sk_state = SkeletonState.from_rotation_and_root_translation(
+            tpose.skeleton_tree,
+            torch.from_numpy(pose_quat_global),
+            full_trans,
+            is_local=False,
+        )
+        motion = SkeletonMotion.from_skeleton_state(new_sk_state, fps=fps)
         motion.to_file(osp.join(motion_dir, "{}.npy".format(name[:-4])))
+
 
         # visualize motion
         if VISUALIZE:

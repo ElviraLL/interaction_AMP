@@ -28,8 +28,9 @@ env:
   Interaction: False
 
   asset:
-    assetRoot: "data/assets"
-    assetFileName: "mjcf/amp_humanoid.xml"
+    assetRoot: "ase/data/assets"
+    # assetFileName: "mjcf/amp_humanoid.xml"
+    assetFileName: "mjcf/smpl_humanoid_19.xml"
 
   plane:
     staticFriction: 1.0

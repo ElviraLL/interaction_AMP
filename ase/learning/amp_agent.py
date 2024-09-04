@@ -110,7 +110,7 @@ class AMPAgent(common_agent.CommonAgent):
             if self.has_central_value:
                 self.experience_buffer.update_data('states', n, self.obs['states'])
 
-            self.obs, rewards, self.dones, infos = self.env_step(res_dict['actions'])
+            self.obs, rewards, self.dones, infos = self.env_step(res_dict['actions']) # task reward
             shaped_rewards = self.rewards_shaper(rewards)
             self.experience_buffer.update_data('rewards', n, shaped_rewards)
             self.experience_buffer.update_data('next_obses', n, self.obs['obs'])

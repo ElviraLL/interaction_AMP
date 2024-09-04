@@ -174,6 +174,8 @@ class HumanoidAMP(Humanoid):
             self._num_amp_obs_per_step = 13 + self._dof_obs_size + 31 + 3 * num_key_bodies # [root_h, root_rot, root_vel, root_ang_vel, dof_pos, dof_vel, key_body_pos]
         elif (asset_file == "mjcf_smplx/amp_humanoid_smplx_male.xml"):
             self._num_amp_obs_per_step = 13 + self._dof_obs_size + 57 + 3 * num_key_bodies
+        elif (asset_file == 'mjcf/smpl_humanoid_19.xml'):
+            self._num_amp_obs_per_step = 13 + self._dof_obs_size + 48 + 3 * num_key_bodies # [root_h, root_rot, root_vel, root_ang_vel, dof_pos, dof_vel, key_body_pos]
         else:
             print("Unsupported character config file: {s}".format(asset_file))
             assert(False)
@@ -340,12 +342,28 @@ class HumanoidAMP(Humanoid):
 
         return
 
+    # def _update_hist_amp_obs(self, env_ids=None):
+    #     if (env_ids is None):
+    #         self._hist_amp_obs_buf[:] = self._amp_obs_buf[:, 0:(self._num_amp_obs_steps - 1)]
+    #     else:
+    #         self._hist_amp_obs_buf[env_ids] = self._amp_obs_buf[env_ids, 0:(self._num_amp_obs_steps - 1)]
+    #     return
+    
     def _update_hist_amp_obs(self, env_ids=None):
-        if (env_ids is None):
-            self._hist_amp_obs_buf[:] = self._amp_obs_buf[:, 0:(self._num_amp_obs_steps - 1)]
+        if env_ids is None:
+            self._hist_amp_obs_buf[:] = self._amp_obs_buf[:, 0:(self._num_amp_obs_steps - 1)].clone()
         else:
-            self._hist_amp_obs_buf[env_ids] = self._amp_obs_buf[env_ids, 0:(self._num_amp_obs_steps - 1)]
+            self._hist_amp_obs_buf[env_ids] = self._amp_obs_buf[env_ids, 0:(self._num_amp_obs_steps - 1)].clone()
         return
+
+    # def _update_hist_amp_obs(self, env_ids=None):
+    #     if (env_ids is None):
+    #         for i in reversed(range(self._amp_obs_buf.shape[1] - 1)):
+    #             self._amp_obs_buf[:, i + 1] = self._amp_obs_buf[:, i]
+    #     else:
+    #         for i in reversed(range(self._amp_obs_buf.shape[1] - 1)):
+    #             self._amp_obs_buf[env_ids, i + 1] = self._amp_obs_buf[env_ids, i]
+    #     return
 
     def pre_physics_step(self, actions):
         super().pre_physics_step(actions)
